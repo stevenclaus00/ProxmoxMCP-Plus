@@ -86,6 +86,34 @@ class VMTools(ProxmoxTool):
             })
         return result if result else None
 
+    def get_vm_config(self, node: str, vmid: str) -> List[Content]:
+        """Get the full configuration of a QEMU virtual machine.
+        
+        Returns hardware configuration including CPU, memory, disk, network,
+        BIOS type, boot order, and more.
+        
+        Args:
+            node: Host node name (e.g., 'pve')
+            vmid: VM ID number (e.g., '100')
+            
+        Returns:
+            List of Content objects containing VM configuration
+        """
+        try:
+            # Get VM config from Proxmox API
+            config = self.proxmox.nodes(node).qemu(vmid).config.get()
+            
+            # Ensure vmid is included in response
+            config = dict(config)
+            config.setdefault("vmid", vmid)
+            
+            # Format as JSON (consistent with get_container_config)
+            import json
+            return [Content(type="text", text=json.dumps(config, indent=2, sort_keys=True))]
+            
+        except Exception as e:
+            self._handle_error(f"get VM config for {vmid}", e)
+
     def get_vms(self) -> List[Content]:
         """List all virtual machines across the cluster with detailed status.
 
