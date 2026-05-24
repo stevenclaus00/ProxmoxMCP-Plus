@@ -211,6 +211,8 @@ async def test_list_tools(server):
     # LXC config tools (no SSH required)
     assert "get_container_config" in tool_names
     assert "get_container_ip" in tool_names
+    # VM config tool
+    assert "get_vm_config" in tool_names
 
 
 @pytest.mark.asyncio
@@ -992,6 +994,54 @@ async def test_get_container_config_missing_parameters(server):
     """get_container_config raises ToolError when required parameters are missing."""
     with pytest.raises(ToolError):
         await server.mcp.call_tool("get_container_config", {})
+
+
+# ---------------------------------------------------------------------------
+# get_vm_config
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_get_vm_config(server, mock_proxmox):
+    """get_vm_config returns full VM config JSON including vmid."""
+    vm_api = mock_proxmox.return_value.nodes.return_value.qemu.return_value
+    vm_api.config.get.return_value = {
+        "name": "ubuntu",
+        "cores": 2,
+        "memory": 4096,
+        "scsi0": "local-lvm:vm-100-disk-0,size=20G",
+        "net0": "virtio=CE:11:53:B7:B6:79,bridge=vmbr0",
+        "bios": "ovmf",
+        "onboot": 1,
+    }
+
+    response = await server.mcp.call_tool(
+        "get_vm_config", {"node": "node1", "vmid": "100"}
+    )
+    result = json.loads(response[0].text)
+
+    assert result["name"] == "ubuntu"
+    assert result["cores"] == 2
+    assert result["memory"] == 4096
+    assert result["vmid"] == "100"
+    assert "scsi0" in result
+
+
+@pytest.mark.asyncio
+async def test_get_vm_config_missing_parameters(server):
+    """get_vm_config raises ToolError when required parameters are missing."""
+    with pytest.raises(ToolError):
+        await server.mcp.call_tool("get_vm_config", {})
+
+
+@pytest.mark.asyncio
+async def test_get_vm_config_api_error(server, mock_proxmox):
+    """get_vm_config surfaces Proxmox API errors via RuntimeError consistently."""
+    mock_proxmox.return_value.nodes.return_value.qemu.return_value.config.get.side_effect = (
+        Exception("VM does not exist")
+    )
+
+    with pytest.raises(ToolError, match="get_vm_config"):
+        await server.mcp.call_tool("get_vm_config", {"node": "node1", "vmid": "999"})
 
 
 # ---------------------------------------------------------------------------

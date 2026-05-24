@@ -109,6 +109,7 @@ Selector-based tools fail when no container matches the selector or when a bulk 
 | `reset_vm` | Mutating | `node`, `vmid` | none | VM exists | VM not found, reset rejected by Proxmox |
 | `delete_vm` | Mutating | `node`, `vmid` | `force=false` | VM exists | running VM without `force`, VM not found |
 | `execute_vm_command` | Mutating | `node`, `vmid`, `command` | `approval_token` | VM running, QEMU Guest Agent installed, policy allows command | guest agent unavailable, VM not running, policy denial |
+| `get_vm_config` | Read-only | `node`, `vmid` | none | VM exists | VM not found, node mismatch |
 
 ### VM Notes
 
