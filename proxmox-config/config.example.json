@@ -27,7 +27,10 @@
     "mcp": {
         "host": "127.0.0.1",
         "port": 8000,
-        "transport": "STDIO"
+        "transport": "STDIO",
+        "dns_rebinding_protection": null,
+        "allowed_hosts": [],
+        "allowed_origins": []
     },
     "security": {
         "dev_mode": false

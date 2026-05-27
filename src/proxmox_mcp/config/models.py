@@ -141,6 +141,9 @@ class MCPConfig(BaseModel):
     host: str = "127.0.0.1"
     port: int = 8000
     transport: Literal["STDIO", "SSE", "STREAMABLE"] = "STDIO"
+    dns_rebinding_protection: Optional[bool] = None
+    allowed_hosts: List[str] = Field(default_factory=list)
+    allowed_origins: List[str] = Field(default_factory=list)
 
     @field_validator("transport", mode="before")
     @classmethod

@@ -16,6 +16,11 @@ from typing import Dict, Any
 import paramiko  # type: ignore[import-untyped]
 
 
+def _log_safe(value: object, max_length: int = 200) -> str:
+    text = str(value).replace("\r", "").replace("\n", "")
+    return text[:max_length]
+
+
 class ContainerConsoleManager:
     """Execute shell commands inside LXC containers via SSH + pct exec."""
 
@@ -42,7 +47,11 @@ class ContainerConsoleManager:
         # reinterpreted as a flag like -oProxyCommand=...
         ssh_cmd.extend(["--", target, cmd])
 
-        self.logger.debug("Executing via OpenSSH client: %s", " ".join(shlex.quote(p) for p in ssh_cmd))
+        self.logger.debug(
+            "Executing command via OpenSSH client on target %s with %s arguments",
+            _log_safe(target),
+            len(ssh_cmd),
+        )
         completed = subprocess.run(  # noqa: S603
             ssh_cmd,
             capture_output=True,
@@ -80,7 +89,7 @@ class ContainerConsoleManager:
         # 2. Build pct exec command
         prefix = "sudo " if self.ssh_cfg.use_sudo else ""
         cmd = f"{prefix}/usr/sbin/pct exec {shlex.quote(str(vmid))} -- sh -c {shlex.quote(command)}"
-        self.logger.info("Executing on CT %s@%s: %s", vmid, node, command)
+        self.logger.info("Executing command on CT %s@%s", _log_safe(vmid), _log_safe(node))
         target = self._ssh_host(node)
 
         if self._use_system_ssh():
@@ -123,7 +132,7 @@ class ContainerConsoleManager:
                 "exit_code": exit_code,
             }
         except paramiko.SSHException as e:
-            self.logger.error("SSH error connecting to %s: %s", node, e)
+            self.logger.error("SSH error connecting to %s: %s", _log_safe(node), _log_safe(e))
             raise RuntimeError(f"SSH error connecting to node {node}: {e}") from e
         finally:
             client.close()

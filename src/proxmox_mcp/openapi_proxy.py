@@ -145,10 +145,20 @@ class ProxyMetricsMiddleware(BaseHTTPMiddleware):
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Simple fixed-window in-memory rate limiter per client address."""
 
+    _SWEEP_INTERVAL = 256
+
     def __init__(self, app: FastAPI, *, requests_per_minute: int) -> None:
         super().__init__(app)
         self.requests_per_minute = requests_per_minute
         self._buckets: dict[str, deque[float]] = {}
+        self._requests_seen = 0
+
+    def _sweep_buckets(self, window_start: float) -> None:
+        for client_host, bucket in list(self._buckets.items()):
+            while bucket and bucket[0] < window_start:
+                bucket.popleft()
+            if not bucket:
+                self._buckets.pop(client_host, None)
 
     async def dispatch(self, request: Request, call_next):  # type: ignore[override]
         if self.requests_per_minute <= 0:
@@ -160,6 +170,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         bucket = self._buckets.setdefault(client_host, deque())
         while bucket and bucket[0] < window_start:
             bucket.popleft()
+        self._requests_seen += 1
+        if self._requests_seen % self._SWEEP_INTERVAL == 0:
+            self._sweep_buckets(window_start)
 
         if len(bucket) >= self.requests_per_minute:
             return JSONResponse(
@@ -326,7 +339,7 @@ def create_app(
         return job_store_local
 
     def _job_error_response(error: Exception) -> JSONResponse:
-        LOGGER.warning("Job route error: %s", error, exc_info=True)
+        LOGGER.warning("Job route error: %s", _log_safe(error))
         if isinstance(error, JobNotFoundError):
             return JSONResponse(status_code=404, content={"status": "not_found", "message": "Job was not found"})
         if isinstance(error, PermissionError):

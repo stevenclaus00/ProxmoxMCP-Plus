@@ -136,6 +136,21 @@ docker run --rm -p 8000:8000 \
 
 Point MCP clients that support Streamable HTTP at `http://<docker-host>:8000/mcp`.
 
+When serving MCP HTTP behind a reverse proxy, keep DNS rebinding protection enabled and allow only the proxy hostnames you expect:
+
+```bash
+docker run --rm -p 8000:8000 \
+  -e PROXMOX_MCP_MODE=mcp-http \
+  -e MCP_HOST=0.0.0.0 \
+  -e MCP_PORT=8000 \
+  -e MCP_TRANSPORT=STREAMABLE_HTTP \
+  -e MCP_DNS_REBINDING_PROTECTION=true \
+  -e MCP_ALLOWED_HOSTS=mcp.example.com:*,localhost:* \
+  -e MCP_ALLOWED_ORIGINS=https://mcp.example.com \
+  -v "$(pwd)/proxmox-config/config.json:/app/proxmox-config/config.json:ro" \
+  ghcr.io/rekklesna/proxmoxmcp-plus:latest
+```
+
 #### Source
 
 ```bash

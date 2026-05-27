@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 from proxmox_mcp.core.ssh_tunnel import SSHTunnelManager
 
 
-def test_api_tunnel_uses_ssh_config_options() -> None:
+def test_api_tunnel_uses_ssh_config_options(caplog) -> None:
     tunnel_config = SimpleNamespace(
         enabled=True,
         ssh_host="jump-host",
@@ -26,6 +26,7 @@ def test_api_tunnel_uses_ssh_config_options() -> None:
     )
     manager = SSHTunnelManager(tunnel_config, ssh_config)
 
+    caplog.set_level("DEBUG", logger="proxmox-mcp.ssh-tunnel")
     with patch("proxmox_mcp.core.ssh_tunnel.subprocess.Popen", return_value=Mock()) as popen:
         manager._start_process()
 
@@ -36,6 +37,9 @@ def test_api_tunnel_uses_ssh_config_options() -> None:
     assert command[command.index("-i") + 1] == os.path.expanduser("~/id_ed25519")
     assert f"UserKnownHostsFile={os.path.expanduser('~/known_hosts.proxmox')}" in command
     assert "StrictHostKeyChecking=no" in command
+    assert "id_ed25519" not in caplog.text
+    assert "known_hosts.proxmox" not in caplog.text
+    assert "Tunnel command" not in caplog.text
 
 
 def test_api_tunnel_does_not_duplicate_user_in_ssh_host() -> None:

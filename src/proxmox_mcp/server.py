@@ -10,10 +10,9 @@ from __future__ import annotations
 import os
 import signal
 import sys
-from typing import Literal, Optional, cast
+from typing import Any, Literal, Optional, cast
 
 from mcp.server.fastmcp import FastMCP
-
 from proxmox_mcp.config.loader import load_config
 from proxmox_mcp.core.logging import setup_logging
 from proxmox_mcp.core.proxmox import ProxmoxManager
@@ -38,6 +37,17 @@ from proxmox_mcp.tools.node import NodeTools
 from proxmox_mcp.tools.snapshots import SnapshotTools
 from proxmox_mcp.tools.storage import StorageTools
 from proxmox_mcp.tools.vm import VMTools
+
+TransportSecuritySettings: Any
+try:
+    from mcp.server.transport_security import TransportSecuritySettings
+except ImportError:  # pragma: no cover - exercised only with older MCP SDKs
+    TransportSecuritySettings = None
+
+
+def _log_safe(value: object, max_length: int = 200) -> str:
+    text = str(value).replace("\r", "").replace("\n", "")
+    return text[:max_length]
 
 
 class ProxmoxMCPServer:
@@ -79,17 +89,54 @@ class ProxmoxMCPServer:
         self.backup_tools = BackupTools(self.proxmox, metrics=self.metrics, job_store=self.job_store)
         self.jobs_tools = JobsTools(self.job_store)
 
-        self.mcp = FastMCP(
-            "ProxmoxMCP",
-            host=self.config.mcp.host,
-            port=self.config.mcp.port,
-            log_level=cast(
-                Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-                self.config.logging.level.upper(),
-            ),
+        log_level = cast(
+            Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+            self.config.logging.level.upper(),
         )
+        transport_security = self._build_transport_security()
+        if transport_security is None:
+            self.mcp = FastMCP(
+                "ProxmoxMCP",
+                host=self.config.mcp.host,
+                port=self.config.mcp.port,
+                log_level=log_level,
+            )
+        else:
+            self.mcp = FastMCP(
+                "ProxmoxMCP",
+                host=self.config.mcp.host,
+                port=self.config.mcp.port,
+                log_level=log_level,
+                transport_security=transport_security,
+            )
         self.tool_registry = ToolRegistry()
         self._setup_tools()
+
+    def _build_transport_security(self) -> Any | None:
+        mcp_config = self.config.mcp
+        configured = (
+            mcp_config.dns_rebinding_protection is not None
+            or bool(mcp_config.allowed_hosts)
+            or bool(mcp_config.allowed_origins)
+        )
+        if not configured:
+            return None
+        if TransportSecuritySettings is None:
+            raise RuntimeError(
+                "MCP transport security settings require mcp>=1.24.0. "
+                "Upgrade the mcp package or remove mcp.dns_rebinding_protection, "
+                "mcp.allowed_hosts, and mcp.allowed_origins from the config."
+            )
+
+        enable_protection = mcp_config.dns_rebinding_protection
+        if enable_protection is None:
+            enable_protection = True
+
+        return TransportSecuritySettings(
+            enable_dns_rebinding_protection=enable_protection,
+            allowed_hosts=mcp_config.allowed_hosts,
+            allowed_origins=mcp_config.allowed_origins,
+        )
 
     def _setup_tools(self) -> None:
         self.tool_registry.add(CoreToolsPlugin())
@@ -132,7 +179,7 @@ class ProxmoxMCPServer:
             else:
                 anyio.run(self.mcp.run_stdio_async)
         except Exception as e:
-            self.logger.error("Server execution failed: %s", e)
+            self.logger.error("Server execution failed: %s", _log_safe(e))
             sys.exit(1)
         finally:
             self.close()
