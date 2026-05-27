@@ -17,6 +17,12 @@ from proxmoxer import ProxmoxAPI
 from proxmox_mcp.config.models import ProxmoxConfig, AuthConfig
 from proxmox_mcp.core.ssh_tunnel import SSHTunnelManager
 
+
+def _log_safe(value: object, max_length: int = 200) -> str:
+    text = str(value).replace("\r", "").replace("\n", "")
+    return text[:max_length]
+
+
 class ProxmoxManager:
     """Manager class for Proxmox API operations.
     
@@ -110,7 +116,7 @@ class ProxmoxManager:
                         - SSL certificate validation errors
         """
         try:
-            self.logger.info(f"Connecting to Proxmox host: {self.config['host']}")
+            self.logger.info("Connecting to Proxmox host: %s", _log_safe(self.config["host"]))
             api = ProxmoxAPI(**self.config)
             
             # Connection test removed from startup for robustness.
@@ -119,7 +125,7 @@ class ProxmoxManager:
             
             return api
         except Exception as e:
-            self.logger.error(f"Failed to initialize Proxmox API client: {e}")
+            self.logger.error("Failed to initialize Proxmox API client: %s", _log_safe(e))
             raise RuntimeError(f"Failed to initialize Proxmox API client: {e}") from e
 
     def get_api(self) -> ProxmoxAPI:

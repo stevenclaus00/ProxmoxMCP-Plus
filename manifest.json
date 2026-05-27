@@ -2,7 +2,7 @@
     "manifest_version": "0.4",
     "name": "proxmox-mcp-plus",
     "display_name": "ProxmoxMCP-Plus",
-    "version": "0.5.2",
+    "version": "0.5.3",
     "description": "An enhanced MCP server for managing Proxmox virtualization platforms.",
     "long_description": "ProxmoxMCP-Plus is an enhanced Model Context Protocol (MCP) server that provides comprehensive tools for managing Proxmox virtualization environments, including VM lifecycle, container management, snapshot operations, and backup/restore capabilities.",
     "author": {
@@ -107,6 +107,10 @@
             "description": "List all virtual machines across the cluster"
         },
         {
+            "name": "get_vm_config",
+            "description": "Get full configuration for a QEMU virtual machine"
+        },
+        {
             "name": "create_vm",
             "description": "Create a new virtual machine with specified resources"
         },
@@ -147,6 +151,26 @@
             "description": "Get overall cluster status and health"
         },
         {
+            "name": "list_jobs",
+            "description": "List persistent Proxmox task jobs"
+        },
+        {
+            "name": "get_job",
+            "description": "Get a persistent job by ID"
+        },
+        {
+            "name": "poll_job",
+            "description": "Poll a Proxmox task job for current status"
+        },
+        {
+            "name": "cancel_job",
+            "description": "Request cancellation for a Proxmox task job"
+        },
+        {
+            "name": "retry_job",
+            "description": "Retry an eligible failed or cancelled job"
+        },
+        {
             "name": "get_containers",
             "description": "List all LXC containers"
         },
@@ -173,6 +197,22 @@
         {
             "name": "delete_container",
             "description": "Delete LXC containers"
+        },
+        {
+            "name": "execute_container_command",
+            "description": "Execute a shell command inside an LXC container via SSH"
+        },
+        {
+            "name": "update_container_ssh_keys",
+            "description": "Update root authorized_keys inside an LXC container"
+        },
+        {
+            "name": "get_container_config",
+            "description": "Get full configuration for an LXC container"
+        },
+        {
+            "name": "get_container_ip",
+            "description": "Get current IP address information for an LXC container"
         },
         {
             "name": "list_snapshots",

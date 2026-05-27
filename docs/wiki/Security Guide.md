@@ -9,6 +9,7 @@ ProxmoxMCP-Plus sits between clients and the Proxmox API. The main controls are:
 - Proxmox API token authentication
 - TLS verification for Proxmox API connections
 - required API key protection for OpenAPI exposure, unless `PROXMOX_ALLOW_NO_AUTH=true` is explicitly set for local development
+- MCP transport DNS rebinding protection and Host/Origin allowlists for Streamable HTTP deployments
 - command policy checks for `execute_*` tools
 - optional SSH configuration for container command execution
 
@@ -18,6 +19,7 @@ ProxmoxMCP-Plus sits between clients and the Proxmox API. The main controls are:
 - Keep `proxmox.verify_ssl=true`
 - Only use `security.dev_mode=true` for local development
 - Set `PROXMOX_API_KEY` before starting OpenAPI mode
+- Keep MCP DNS rebinding protection enabled when exposing Streamable HTTP through a reverse proxy
 - Restrict who can reach the OpenAPI endpoint
 - Keep logs for sensitive operations
 
@@ -79,6 +81,27 @@ If you run the OpenAPI proxy:
 - restrict ingress to networks you control
 - monitor unauthenticated `/livez` for process liveness and authenticated `/health` or `/readyz` for backend readiness
 - avoid exposing it directly to the public internet without additional controls
+
+## MCP HTTP Host Validation
+
+Native Streamable HTTP MCP deployments can configure DNS rebinding protection through the `mcp` config section or environment variables.
+
+Recommended reverse proxy settings:
+
+```json
+{
+  "mcp": {
+    "host": "0.0.0.0",
+    "port": 8000,
+    "transport": "STREAMABLE_HTTP",
+    "dns_rebinding_protection": true,
+    "allowed_hosts": ["mcp.example.com:*", "localhost:*"],
+    "allowed_origins": ["https://mcp.example.com"]
+  }
+}
+```
+
+If these fields are omitted, ProxmoxMCP-Plus leaves transport-security defaults to the installed MCP SDK. Set `dns_rebinding_protection=false` only for a trusted local development setup.
 
 ## Credential Handling
 

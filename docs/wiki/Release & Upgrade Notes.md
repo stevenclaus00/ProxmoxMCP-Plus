@@ -18,6 +18,33 @@ Use this page to track version-level behavior changes, upgrade steps, and rollba
 
 ## Release History
 
+### Version `0.5.3`
+
+- Release date: 2026-05-27
+- Summary: security-hardening release that aligns the published manifest with all runtime tools, redacts command and error logs, bounds OpenAPI rate-limiter bucket growth, adds configurable MCP DNS rebinding protection, and expands regression coverage for high-risk operations.
+- New tools or endpoints:
+  - no new runtime tools or endpoints; `manifest.json` now declares all 42 registered tools
+- Changed behavior:
+  - VM and LXC command execution logs no longer include command text, command output, or command error content
+  - OpenSSH LXC execution and API SSH tunnel debug logs no longer expose full command lines or local SSH key paths
+  - OpenAPI job route errors log sanitized summaries instead of raw traceback text
+  - the OpenAPI rate limiter periodically removes expired empty client buckets
+  - MCP HTTP transports can opt into explicit DNS rebinding protection, Host allowlists, and Origin allowlists
+- Config changes:
+  - added `mcp.dns_rebinding_protection`, `mcp.allowed_hosts`, and `mcp.allowed_origins`
+  - added `MCP_DNS_REBINDING_PROTECTION`, `MCP_ALLOWED_HOSTS`, and `MCP_ALLOWED_ORIGINS`
+- Docs updated:
+  - `docs/releases/v0.5.3.md`
+  - `docs/wiki/Release & Upgrade Notes.md`
+  - `docs/wiki/Security Guide.md`
+  - `docs/wiki/Operator Guide.md`
+  - `docs/wiki/Integrations Guide.md`
+- Upgrade steps:
+  - no required migration for stdio deployments
+  - configure allowed hosts and origins before exposing HTTP transports behind a reverse proxy
+- Rollback notes:
+  - downgrade to `v0.5.2` only if the deployment cannot run the MCP SDK version needed for configured transport security; doing so reopens manifest drift and log-redaction gaps
+
 ### Version `0.5.2`
 
 - Release date: 2026-05-12

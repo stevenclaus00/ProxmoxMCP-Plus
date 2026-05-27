@@ -18,6 +18,12 @@ from proxmoxer import ProxmoxAPI
 from proxmox_mcp.formatting import ProxmoxTemplates
 from proxmox_mcp.observability import ToolMetrics
 
+
+def _log_safe(value: object, max_length: int = 200) -> str:
+    text = str(value).replace("\r", "").replace("\n", "")
+    return text[:max_length]
+
+
 class ProxmoxTool:
     """Base class for Proxmox MCP tools.
     
@@ -134,7 +140,7 @@ class ProxmoxTool:
             RuntimeError: For unexpected errors or API failures
         """
         error_msg = str(error)
-        self.logger.error(f"Failed to {operation}: {error_msg}")
+        self.logger.error("Failed to %s: %s", _log_safe(operation), _log_safe(error_msg))
 
         if "not found" in error_msg.lower():
             raise ValueError(f"Resource not found: {error_msg}")

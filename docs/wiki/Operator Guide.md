@@ -39,7 +39,7 @@ The main sections are:
 - `api_tunnel`: optional SSH local forward for the Proxmox API
 - `auth`: Proxmox API user and token
 - `logging`: log level, format, optional log file
-- `mcp`: MCP host, port, and transport
+- `mcp`: MCP host, port, transport, and optional transport Host/Origin allowlists
 - `security`: currently includes `dev_mode`
 - `jobs`: SQLite path for persistent job tracking
 - `command_policy`: rules for `execute_*` tools and high-risk mutating operations
@@ -62,6 +62,9 @@ Common variables:
 - `MCP_HOST`
 - `MCP_PORT`
 - `MCP_TRANSPORT`
+- `MCP_DNS_REBINDING_PROTECTION`
+- `MCP_ALLOWED_HOSTS`
+- `MCP_ALLOWED_ORIGINS`
 - `PROXMOX_DEV_MODE`
 - `COMMAND_POLICY_MODE`
 - `PROXMOX_JOBS_SQLITE_PATH`
@@ -92,6 +95,18 @@ http://<host>:8000/mcp
 ```
 
 This is the correct target for MCP clients that support Streamable HTTP. It is separate from the OpenAPI service on port `8811`.
+
+For reverse proxy deployments, configure the external hostnames explicitly instead of disabling DNS rebinding protection:
+
+```bash
+MCP_HOST=0.0.0.0 \
+MCP_PORT=8000 \
+MCP_TRANSPORT=STREAMABLE_HTTP \
+MCP_DNS_REBINDING_PROTECTION=true \
+MCP_ALLOWED_HOSTS=mcp.example.com:*,localhost:* \
+MCP_ALLOWED_ORIGINS=https://mcp.example.com \
+python -m proxmox_mcp.server
+```
 
 ## OpenAPI Mode
 
@@ -166,6 +181,7 @@ Before exposing the service to users:
 - Keep `proxmox.verify_ssl=true` unless you are explicitly in development mode
 - Keep `security.dev_mode=false` outside local testing
 - Set `PROXMOX_API_KEY` for OpenAPI mode; only use `PROXMOX_ALLOW_NO_AUTH=true` for local unauthenticated development
+- For MCP HTTP behind a proxy, keep `MCP_DNS_REBINDING_PROTECTION=true` and set `MCP_ALLOWED_HOSTS` to the exact public hostnames
 - Restrict ingress to networks you control
 - Monitor `/livez` for process liveness and authenticated `/health` or `/readyz` for backend readiness
 - Monitor `/metrics` if you scrape the service with Prometheus-compatible tooling

@@ -65,6 +65,14 @@ http://<docker-host>:8000/mcp
 
 The default OpenAPI service on port `8811` is not an MCP Streamable HTTP endpoint; MCP HTTP clients should use `/mcp` on the native MCP service.
 
+If the MCP HTTP service is reached through a reverse proxy or gateway, configure the expected external Host header:
+
+```bash
+MCP_DNS_REBINDING_PROTECTION=true
+MCP_ALLOWED_HOSTS=mcp.example.com:*,localhost:*
+MCP_ALLOWED_ORIGINS=https://mcp.example.com
+```
+
 ## OpenAPI Clients
 
 For HTTP-native clients, run the OpenAPI wrapper and connect to:

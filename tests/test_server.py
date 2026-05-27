@@ -9,8 +9,10 @@ from typing import Any, cast
 from unittest.mock import Mock, patch
 
 from mcp.server.fastmcp.exceptions import ToolError
-from proxmox_mcp.server import ProxmoxMCPServer
+
+import proxmox_mcp.server as server_module
 from proxmox_mcp.config.loader import load_config
+from proxmox_mcp.server import ProxmoxMCPServer
 
 
 def _schema_contains_key(value, key):
@@ -124,6 +126,93 @@ def test_mcp_env_overrides_file_transport_for_docker(tmp_path, monkeypatch):
     assert config.mcp.host == "0.0.0.0"
     assert config.mcp.port == 9001
     assert config.mcp.transport == "STREAMABLE"
+
+
+def test_mcp_env_overrides_transport_security(tmp_path, monkeypatch):
+    """Reverse proxy deployments can configure MCP Host and Origin validation via env vars."""
+    config_path = tmp_path / "config_stdio.json"
+    config_path.write_text(json.dumps({
+        "proxmox": {"host": "test.proxmox.com", "port": 8006, "verify_ssl": True, "service": "PVE"},
+        "auth": {"user": "test@pve", "token_name": "test_token", "token_value": "test_value"},
+        "logging": {"level": "INFO"},
+        "mcp": {"host": "127.0.0.1", "port": 8000, "transport": "STDIO"},
+    }))
+    monkeypatch.setenv("MCP_DNS_REBINDING_PROTECTION", "true")
+    monkeypatch.setenv("MCP_ALLOWED_HOSTS", "mcp.example.com:*, localhost:*")
+    monkeypatch.setenv("MCP_ALLOWED_ORIGINS", "https://mcp.example.com, http://localhost:*")
+
+    config = load_config(str(config_path))
+
+    assert config.mcp.dns_rebinding_protection is True
+    assert config.mcp.allowed_hosts == ["mcp.example.com:*", "localhost:*"]
+    assert config.mcp.allowed_origins == ["https://mcp.example.com", "http://localhost:*"]
+
+
+def test_server_leaves_transport_security_to_sdk_when_unconfigured(tmp_path):
+    """Unconfigured deployments keep the MCP SDK's default transport-security behavior."""
+    config_path = tmp_path / "config_http_default_security.json"
+    config_path.write_text(json.dumps({
+        "proxmox": {"host": "test.proxmox.com", "port": 8006, "verify_ssl": True, "service": "PVE"},
+        "auth": {"user": "test@pve", "token_name": "test_token", "token_value": "test_value"},
+        "logging": {"level": "INFO"},
+        "mcp": {"host": "0.0.0.0", "port": 8000, "transport": "STREAMABLE"},
+    }))
+
+    config = load_config(str(config_path))
+    http_server = object.__new__(ProxmoxMCPServer)
+    http_server.config = config
+
+    assert http_server._build_transport_security() is None
+
+
+def test_server_applies_configured_transport_security(mock_proxmox, tmp_path):
+    """Configured Host and Origin allowlists are passed through to FastMCP."""
+    config_path = tmp_path / "config_http_security.json"
+    config_path.write_text(json.dumps({
+        "proxmox": {"host": "test.proxmox.com", "port": 8006, "verify_ssl": True, "service": "PVE"},
+        "auth": {"user": "test@pve", "token_name": "test_token", "token_value": "test_value"},
+        "logging": {"level": "INFO"},
+        "mcp": {
+            "host": "0.0.0.0",
+            "port": 8000,
+            "transport": "STREAMABLE",
+            "dns_rebinding_protection": True,
+            "allowed_hosts": ["mcp.example.com:*", "localhost:*"],
+            "allowed_origins": ["https://mcp.example.com"],
+        },
+    }))
+
+    http_server = ProxmoxMCPServer(str(config_path))
+    security = http_server.mcp.settings.transport_security
+
+    assert security is not None
+    assert security.enable_dns_rebinding_protection is True
+    assert security.allowed_hosts == ["mcp.example.com:*", "localhost:*"]
+    assert security.allowed_origins == ["https://mcp.example.com"]
+
+
+def test_server_requires_supported_mcp_sdk_for_configured_transport_security(
+    mock_proxmox,
+    tmp_path,
+    monkeypatch,
+):
+    """Configured transport security should fail clearly on older MCP SDKs."""
+    config_path = tmp_path / "config_http_security_old_sdk.json"
+    config_path.write_text(json.dumps({
+        "proxmox": {"host": "test.proxmox.com", "port": 8006, "verify_ssl": True, "service": "PVE"},
+        "auth": {"user": "test@pve", "token_name": "test_token", "token_value": "test_value"},
+        "logging": {"level": "INFO"},
+        "mcp": {
+            "host": "0.0.0.0",
+            "port": 8000,
+            "transport": "STREAMABLE",
+            "allowed_hosts": ["mcp.example.com:*"],
+        },
+    }))
+    monkeypatch.setattr(server_module, "TransportSecuritySettings", None)
+
+    with pytest.raises(RuntimeError, match="mcp>=1.24.0"):
+        ProxmoxMCPServer(str(config_path))
 
 
 def test_server_uses_local_api_tunnel_endpoint(mock_proxmox, tmp_path):

@@ -22,6 +22,17 @@ def _parse_csv_env(name: str) -> list[str] | None:
     return [item.strip() for item in os.environ[name].split(",") if item.strip()]
 
 
+def _parse_bool_env(name: str) -> bool | None:
+    if name not in os.environ:
+        return None
+    value = os.environ[name].strip().lower()
+    if value in {"1", "true", "yes", "on"}:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(f"{name} must be a boolean value")
+
+
 def _apply_mcp_env_overrides(config_data: Dict[str, Any]) -> None:
     """Allow deployment-specific MCP transport settings to override file config."""
     env_map = {
@@ -34,6 +45,16 @@ def _apply_mcp_env_overrides(config_data: Dict[str, Any]) -> None:
         for env_name, (key, coerce) in env_map.items()
         if env_name in os.environ
     }
+    dns_rebinding_protection = _parse_bool_env("MCP_DNS_REBINDING_PROTECTION")
+    if dns_rebinding_protection is not None:
+        overrides["dns_rebinding_protection"] = dns_rebinding_protection
+    allowed_hosts = _parse_csv_env("MCP_ALLOWED_HOSTS")
+    if allowed_hosts is not None:
+        overrides["allowed_hosts"] = allowed_hosts
+    allowed_origins = _parse_csv_env("MCP_ALLOWED_ORIGINS")
+    if allowed_origins is not None:
+        overrides["allowed_origins"] = allowed_origins
+
     if not overrides:
         return
 
@@ -138,7 +159,7 @@ def load_config(config_path: Optional[str] = None) -> Config:
             'mcp': {
                 'host': os.getenv("MCP_HOST", "0.0.0.0"),
                 'port': int(os.getenv("MCP_PORT", "8000")),
-                'transport': os.getenv("MCP_TRANSPORT", "stdio").upper() if os.getenv("MCP_TRANSPORT") else "STDIO"
+                'transport': os.getenv("MCP_TRANSPORT", "stdio").upper() if os.getenv("MCP_TRANSPORT") else "STDIO",
             },
             'security': {
                 'dev_mode': os.getenv("PROXMOX_DEV_MODE", "false").lower() == "true",

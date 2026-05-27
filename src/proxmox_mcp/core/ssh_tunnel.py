@@ -5,11 +5,15 @@ from __future__ import annotations
 import atexit
 import logging
 import os
-import shlex
 import socket
 import subprocess
 import time
 from typing import Any
+
+
+def _log_safe(value: object, max_length: int = 200) -> str:
+    text = str(value).replace("\r", "").replace("\n", "")
+    return text[:max_length]
 
 
 class SSHTunnelManager:
@@ -83,8 +87,15 @@ class SSHTunnelManager:
             self._ssh_target(),
         ])
 
-        self.logger.info("Starting Proxmox API SSH tunnel via %s", self.tunnel_config.ssh_host)
-        self.logger.debug("Tunnel command: %s", " ".join(shlex.quote(part) for part in command))
+        self.logger.info("Starting Proxmox API SSH tunnel via %s", _log_safe(self.tunnel_config.ssh_host))
+        self.logger.debug(
+            "Starting Proxmox API SSH tunnel with local=%s:%s remote=%s:%s strict_host_key_checking=%s",
+            _log_safe(self.tunnel_config.local_host),
+            _log_safe(self.tunnel_config.local_port),
+            _log_safe(self.tunnel_config.remote_host),
+            _log_safe(self.tunnel_config.remote_port),
+            strict_host_key_checking,
+        )
         self._process = subprocess.Popen(  # noqa: S603
             command,
             stdout=subprocess.PIPE,
@@ -106,9 +117,9 @@ class SSHTunnelManager:
                 stderr = ""
                 if self._process.stderr is not None:
                     stderr = self._process.stderr.read().strip()
-                raise RuntimeError(
-                    f"Failed to establish SSH tunnel via {self.tunnel_config.ssh_host}: {stderr or 'ssh exited early'}"
-                )
+                safe_host = _log_safe(self.tunnel_config.ssh_host)
+                safe_error = _log_safe(stderr or "ssh exited early")
+                raise RuntimeError(f"Failed to establish SSH tunnel via {safe_host}: {safe_error}")
             if self._is_local_endpoint_reachable():
                 self.logger.info(
                     "SSH tunnel ready on %s:%s",

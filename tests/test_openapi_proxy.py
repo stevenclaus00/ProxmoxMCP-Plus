@@ -452,10 +452,10 @@ def test_retry_job_route_enforces_high_risk_policy():
     ]
 
 
-def test_jobs_routes_hide_internal_error_details():
+def test_jobs_routes_hide_internal_error_details(caplog):
     class _BrokenJobStore:
         def list_jobs(self, **kwargs):
-            raise ValueError("sensitive backend detail")
+            raise ValueError("sensitive\r\nbackend detail")
 
     app = create_app(
         server_command=["python", "-c", "print('ok')"],
@@ -466,7 +466,10 @@ def test_jobs_routes_hide_internal_error_details():
     )
     client = TestClient(app)
 
+    caplog.set_level("WARNING", logger=openapi_proxy.LOGGER.name)
     response = client.get("/jobs")
 
     assert response.status_code == 400
     assert response.json()["message"] == "Job request failed"
+    assert "sensitivebackend detail" in caplog.text
+    assert "sensitive\r\nbackend detail" not in caplog.text

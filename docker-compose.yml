@@ -34,6 +34,10 @@ services:
       - MCP_HOST=0.0.0.0
       - MCP_PORT=8000
       - MCP_TRANSPORT=STREAMABLE_HTTP
+      # For reverse proxy deployments, set explicit Host/Origin allowlists.
+      # - MCP_DNS_REBINDING_PROTECTION=true
+      # - MCP_ALLOWED_HOSTS=mcp.example.com:*,localhost:*
+      # - MCP_ALLOWED_ORIGINS=https://mcp.example.com
     restart: unless-stopped
     networks:
       - proxmox-network
