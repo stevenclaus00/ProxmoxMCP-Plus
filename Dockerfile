@@ -7,10 +7,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     openssh-client \
     && rm -rf /var/lib/apt/lists/*
 
-COPY . .
+COPY pyproject.toml setup.py README.md LICENSE ./
+COPY src ./src
 
 RUN python -m pip install --no-cache-dir --upgrade pip \
     && python -m pip install --no-cache-dir .
+
+COPY . .
 
 RUN useradd --create-home --shell /usr/sbin/nologin proxmoxmcp \
     && chown -R proxmoxmcp:proxmoxmcp /app

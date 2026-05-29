@@ -1,15 +1,24 @@
 import asyncio
 import json
 import logging
-import re
 from collections import deque
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from fastapi import FastAPI
 
 from proxmox_mcp.openapi_proxy import RateLimitMiddleware
+from proxmox_mcp.services.builtin_tool_plugins import (
+    BackupToolsPlugin,
+    ContainerToolsPlugin,
+    CoreToolsPlugin,
+    ImageToolsPlugin,
+    JobsToolsPlugin,
+    SnapshotToolsPlugin,
+    VMToolsPlugin,
+)
 from proxmox_mcp.tools.base import ProxmoxTool
 from proxmox_mcp.tools.console.container_manager import ContainerConsoleManager
 from proxmox_mcp.tools.console.manager import VMConsoleManager
@@ -18,23 +27,40 @@ from proxmox_mcp.tools.console.manager import VMConsoleManager
 ROOT = Path(__file__).resolve().parent.parent
 
 
+class _FakeMCP:
+    def __init__(self):
+        self.tools: set[str] = set()
+
+    def tool(self, *args, **kwargs):
+        def decorator(func):
+            self.tools.add(func.__name__)
+            return func
+
+        return decorator
+
+
 def test_manifest_declares_all_registered_tools():
     manifest = json.loads((ROOT / "manifest.json").read_text(encoding="utf-8"))
     manifest_tools = {tool["name"] for tool in manifest["tools"]}
 
-    plugin_source = (ROOT / "src/proxmox_mcp/services/builtin_tool_plugins.py").read_text(
-        encoding="utf-8"
+    fake_mcp = _FakeMCP()
+    fake_server = SimpleNamespace(
+        mcp=fake_mcp,
+        config=SimpleNamespace(ssh=SimpleNamespace(user="root")),
+        logger=Mock(),
     )
-    lines = plugin_source.splitlines()
-    registered_tools: set[str] = set()
-    for index, line in enumerate(lines):
-        if "@server.mcp.tool" not in line:
-            continue
-        for candidate in lines[index + 1 : index + 6]:
-            match = re.search(r"\b(?:async\s+def|def)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(", candidate)
-            if match:
-                registered_tools.add(match.group(1))
-                break
+    for plugin in (
+        CoreToolsPlugin(),
+        JobsToolsPlugin(),
+        VMToolsPlugin(),
+        ContainerToolsPlugin(),
+        SnapshotToolsPlugin(),
+        ImageToolsPlugin(),
+        BackupToolsPlugin(),
+    ):
+        plugin.register(fake_server)
+
+    registered_tools = fake_mcp.tools
 
     assert registered_tools
     assert registered_tools - manifest_tools == set()
