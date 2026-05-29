@@ -148,6 +148,40 @@ def test_mcp_env_overrides_transport_security(tmp_path, monkeypatch):
     assert config.mcp.allowed_origins == ["https://mcp.example.com", "http://localhost:*"]
 
 
+def test_env_boolean_overrides_accept_common_values(monkeypatch, tmp_path):
+    monkeypatch.setenv("PROXMOX_HOST", "test.proxmox.com")
+    monkeypatch.setenv("PROXMOX_USER", "test@pve")
+    monkeypatch.setenv("PROXMOX_TOKEN_NAME", "test-token")
+    monkeypatch.setenv("PROXMOX_TOKEN_VALUE", "secret")
+    monkeypatch.setenv("PROXMOX_VERIFY_SSL", "YES")
+    monkeypatch.setenv("PROXMOX_DEV_MODE", "on")
+    monkeypatch.setenv("PROXMOX_API_TUNNEL_ENABLED", "1")
+    monkeypatch.setenv("PROXMOX_API_TUNNEL_SSH_HOST", "jump-host")
+    monkeypatch.setenv("COMMAND_POLICY_REQUIRE_APPROVAL_TOKEN", "true")
+    monkeypatch.setenv("COMMAND_POLICY_HIGH_RISK_REQUIRE_APPROVAL_TOKEN", "yes")
+    monkeypatch.setenv("PROXMOX_JOBS_SQLITE_PATH", str(tmp_path / "jobs.sqlite3"))
+
+    config = load_config(None)
+
+    assert config.proxmox.verify_ssl is True
+    assert config.security.dev_mode is True
+    assert config.api_tunnel is not None
+    assert config.api_tunnel.enabled is True
+    assert config.command_policy.require_approval_token is True
+    assert config.command_policy.high_risk_require_approval_token is True
+
+
+def test_env_boolean_overrides_reject_invalid_values(monkeypatch):
+    monkeypatch.setenv("PROXMOX_HOST", "test.proxmox.com")
+    monkeypatch.setenv("PROXMOX_USER", "test@pve")
+    monkeypatch.setenv("PROXMOX_TOKEN_NAME", "test-token")
+    monkeypatch.setenv("PROXMOX_TOKEN_VALUE", "secret")
+    monkeypatch.setenv("PROXMOX_VERIFY_SSL", "maybe")
+
+    with pytest.raises(ValueError, match="PROXMOX_VERIFY_SSL must be a boolean value"):
+        load_config(None)
+
+
 def test_server_leaves_transport_security_to_sdk_when_unconfigured(tmp_path):
     """Unconfigured deployments keep the MCP SDK's default transport-security behavior."""
     config_path = tmp_path / "config_http_default_security.json"

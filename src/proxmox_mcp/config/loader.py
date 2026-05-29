@@ -33,6 +33,11 @@ def _parse_bool_env(name: str) -> bool | None:
     raise ValueError(f"{name} must be a boolean value")
 
 
+def _bool_env(name: str, default: bool = False) -> bool:
+    value = _parse_bool_env(name)
+    return default if value is None else value
+
+
 def _apply_mcp_env_overrides(config_data: Dict[str, Any]) -> None:
     """Allow deployment-specific MCP transport settings to override file config."""
     env_map = {
@@ -118,10 +123,10 @@ def load_config(config_path: Optional[str] = None) -> Config:
         command_policy = {
             'mode': os.getenv("COMMAND_POLICY_MODE", "deny_all"),
             'allow_patterns': _parse_csv_env("COMMAND_POLICY_ALLOW_PATTERNS") or [],
-            'require_approval_token': os.getenv("COMMAND_POLICY_REQUIRE_APPROVAL_TOKEN", "false").lower() == "true",
+            'require_approval_token': _bool_env("COMMAND_POLICY_REQUIRE_APPROVAL_TOKEN"),
             'approval_token': os.getenv("COMMAND_POLICY_APPROVAL_TOKEN"),
             'high_risk_mode': os.getenv("COMMAND_POLICY_HIGH_RISK_MODE", "audit_only"),
-            'high_risk_require_approval_token': os.getenv("COMMAND_POLICY_HIGH_RISK_REQUIRE_APPROVAL_TOKEN", "false").lower() == "true",
+            'high_risk_require_approval_token': _bool_env("COMMAND_POLICY_HIGH_RISK_REQUIRE_APPROVAL_TOKEN"),
             'high_risk_approval_token': os.getenv("COMMAND_POLICY_HIGH_RISK_APPROVAL_TOKEN"),
         }
         deny_patterns = _parse_csv_env("COMMAND_POLICY_DENY_PATTERNS")
@@ -136,7 +141,7 @@ def load_config(config_path: Optional[str] = None) -> Config:
                 'host': os.getenv("PROXMOX_HOST"),
                 'port': int(os.getenv("PROXMOX_PORT", "8006")),
                 'timeout': int(os.getenv("PROXMOX_TIMEOUT", "30")),
-                'verify_ssl': os.getenv("PROXMOX_VERIFY_SSL", "true").lower() == "true",
+                'verify_ssl': _bool_env("PROXMOX_VERIFY_SSL", True),
                 'service': os.getenv("PROXMOX_SERVICE", "PVE")
             },
             'auth': {
@@ -145,7 +150,7 @@ def load_config(config_path: Optional[str] = None) -> Config:
                 'token_value': os.getenv("PROXMOX_TOKEN_VALUE")
             },
             'api_tunnel': {
-                'enabled': os.getenv("PROXMOX_API_TUNNEL_ENABLED", "false").lower() == "true",
+                'enabled': _bool_env("PROXMOX_API_TUNNEL_ENABLED"),
                 'ssh_host': os.getenv("PROXMOX_API_TUNNEL_SSH_HOST"),
                 'local_host': os.getenv("PROXMOX_API_TUNNEL_LOCAL_HOST", "127.0.0.1"),
                 'local_port': int(os.getenv("PROXMOX_API_TUNNEL_LOCAL_PORT", os.getenv("PROXMOX_PORT", "8006"))),
@@ -162,7 +167,7 @@ def load_config(config_path: Optional[str] = None) -> Config:
                 'transport': os.getenv("MCP_TRANSPORT", "stdio").upper() if os.getenv("MCP_TRANSPORT") else "STDIO",
             },
             'security': {
-                'dev_mode': os.getenv("PROXMOX_DEV_MODE", "false").lower() == "true",
+                'dev_mode': _bool_env("PROXMOX_DEV_MODE"),
             },
             'jobs': {
                 'sqlite_path': os.getenv("PROXMOX_JOBS_SQLITE_PATH", "proxmox-jobs.sqlite3"),

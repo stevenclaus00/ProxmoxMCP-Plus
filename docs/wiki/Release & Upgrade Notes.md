@@ -18,6 +18,32 @@ Use this page to track version-level behavior changes, upgrade steps, and rollba
 
 ## Release History
 
+### Version `0.5.4`
+
+- Release date: 2026-05-29
+- Summary: quality and release-safety update that raises the coverage gate, adds user-path tests for high-traffic tools, enforces release metadata parity, removes unused utility code, improves Docker build caching, and makes boolean environment parsing consistent.
+- New tools or endpoints:
+  - no new runtime tools or endpoints
+- Changed behavior:
+  - invalid boolean environment values now fail startup validation instead of being interpreted as false
+  - manifest parity tests now exercise the runtime plugin registration path rather than parsing source text
+  - Docker builds can reuse the package-install layer when only repository files outside package metadata/source change
+- Removed or deprecated behavior:
+  - removed the unused `proxmox_mcp.utils` package
+- Config changes:
+  - `PROXMOX_VERIFY_SSL`, `PROXMOX_API_TUNNEL_ENABLED`, `PROXMOX_DEV_MODE`, `COMMAND_POLICY_REQUIRE_APPROVAL_TOKEN`, and `COMMAND_POLICY_HIGH_RISK_REQUIRE_APPROVAL_TOKEN` now share strict boolean parsing
+- Docs updated:
+  - `README.md`
+  - `docs/releases/v0.5.4.md`
+  - `docs/wiki/Developer Guide.md`
+  - `docs/wiki/Home.md`
+  - `docs/wiki/Release & Upgrade Notes.md`
+- Upgrade steps:
+  - no required migration
+  - check deployment environment files for invalid boolean strings before upgrading
+- Rollback notes:
+  - downgrade to `v0.5.3` only if a deployment depends on previously invalid boolean values being treated as false; doing so removes the stronger metadata and coverage guardrails
+
 ### Version `0.5.3`
 
 - Release date: 2026-05-27
@@ -374,7 +400,7 @@ After upgrading:
 
 ## Suggested Release Checklist
 
-- run `pytest -q --cov=proxmox_mcp --cov-report=term-missing --cov-fail-under=60`
+- run `pytest -q --cov=proxmox_mcp --cov-report=term-missing --cov-fail-under=70`
 - run `ruff check .`
 - run `mypy src --ignore-missing-imports`
 - run `pip-audit -r requirements.txt`
