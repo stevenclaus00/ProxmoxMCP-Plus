@@ -18,6 +18,28 @@ Use this page to track version-level behavior changes, upgrade steps, and rollba
 
 ## Release History
 
+### Version `0.5.7`
+
+- Release date: 2026-05-30
+- Summary: visual documentation release that replaces the README hero architecture diagram with a publication-style SVG grounded in the actual ProxmoxMCP-Plus runtime architecture.
+- New tools or endpoints:
+  - no new runtime tools or endpoints
+- Changed behavior:
+  - no runtime behavior changes
+- Removed or deprecated behavior:
+  - no removals or deprecations
+- Config changes:
+  - no required config migration
+- Docs updated:
+  - `README.md`
+  - `docs/assets/proxmoxmcp-nature-architecture.svg`
+  - `docs/releases/v0.5.7.md`
+  - `docs/wiki/Release & Upgrade Notes.md`
+- Upgrade steps:
+  - no required migration
+- Rollback notes:
+  - downgrade to `v0.5.6` only if a downstream documentation renderer cannot display the new SVG asset
+
 ### Version `0.5.6`
 
 - Release date: 2026-05-30

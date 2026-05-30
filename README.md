@@ -27,7 +27,7 @@
   <a href="https://github.com/RekklesNA/ProxmoxMCP-Plus/wiki">Wiki</a>
 </p>
 
-![ProxmoxMCP-Plus architecture and control flow](docs/assets/proxmoxmcp-drawio-hero-main-refresh.svg)
+![ProxmoxMCP-Plus architecture](docs/assets/proxmoxmcp-nature-architecture.svg)
 
 ## Why ProxmoxMCP-Plus
 
