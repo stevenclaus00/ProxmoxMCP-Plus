@@ -2,6 +2,8 @@
 
 This guide covers the main ways to connect clients and platforms to ProxmoxMCP-Plus.
 
+For client-specific install snippets for Claude Desktop, Cursor, VS Code, Codex, OpenCode, Open WebUI, and generic MCP clients, start with [Client Setup](Client-Setup). This page focuses on transport patterns and HTTP integration details.
+
 ## Integration Patterns
 
 - `Direct MCP`: a client launches the server locally and talks over stdio
@@ -124,6 +126,7 @@ After connecting a client, verify:
 
 ## Related Pages
 
+- [Client Setup](Client-Setup)
 - [Operator Guide](Operator-Guide)
 - [Security Guide](Security-Guide)
 - [Troubleshooting](Troubleshooting)

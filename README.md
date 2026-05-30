@@ -6,7 +6,7 @@
   <img src="docs/assets/logo-proxmoxmcp-plus.png" alt="ProxmoxMCP-Plus Logo" width="160"/>
 </div>
 
-<p align="center"><strong>Control Proxmox VE from LLMs, AI agents, MCP clients, and OpenAPI tooling with one safer interface for VMs, LXCs, backups, snapshots, ISOs, container commands, and persistent long-running jobs.</strong></p>
+<p align="center"><strong>Operate Proxmox VE from MCP clients, AI agents, and OpenAPI tooling through one security-conscious control plane for VMs, LXCs, snapshots, backups, ISOs, container commands, and persistent long-running jobs.</strong></p>
 
 <p align="center">
   <a href="https://pypi.org/project/proxmox-mcp-plus/"><img alt="PyPI" src="https://img.shields.io/pypi/v/proxmox-mcp-plus"></a>
@@ -18,8 +18,10 @@
 
 <p align="center">
   <a href="#quick-start">Quick Start</a> |
+  <a href="#client-install">Client Install</a> |
   <a href="#demo">Demo</a> |
-  <a href="#core-platform-capabilities">Capabilities</a> |
+  <a href="#choose-the-right-tool">Tools</a> |
+  <a href="#safety-model">Safety</a> |
   <a href="#scenario-templates">Scenarios</a> |
   <a href="#documentation">Docs</a> |
   <a href="https://github.com/RekklesNA/ProxmoxMCP-Plus/wiki">Wiki</a>
@@ -27,14 +29,16 @@
 
 ![ProxmoxMCP-Plus architecture and control flow](docs/assets/proxmoxmcp-drawio-hero-main-refresh.svg)
 
-## Platform Overview
+## Why ProxmoxMCP-Plus
 
-ProxmoxMCP-Plus provides a unified Proxmox VE control surface in two forms:
+ProxmoxMCP-Plus sits between AI clients and Proxmox VE so operators do not have to stitch together raw API calls, one-off shell scripts, and custom job polling for every workflow.
 
-- `MCP` for Claude Desktop, Open WebUI, and other LLM or AI agent clients
+It exposes the same operational surface in two ways:
+
+- `MCP` for Claude Desktop, Cursor, VS Code, Open WebUI, Codex, and other MCP-capable agents
 - `OpenAPI` for HTTP automation, dashboards, internal tools, and no-code workflows
 
-Instead of stitching together raw Proxmox API calls, shell scripts, and custom glue code, the project consolidates core operational workflows in one interface:
+What you get:
 
 - VM and LXC lifecycle actions
 - snapshot create, rollback, and delete
@@ -44,28 +48,21 @@ Instead of stitching together raw Proxmox API calls, shell scripts, and custom g
 - SSH-backed container command execution with guardrails
 - persistent job tracking for async Proxmox tasks
 
-## Design Priorities
+## What Makes It Different
 
-ProxmoxMCP-Plus is designed for the gap between low-level Proxmox primitives and production-facing workflows that need to be usable from both LLM-native clients and standard automation systems.
-
-- `Dual-surface architecture`: MCP for conversational workflows, OpenAPI for standard automation
-- `Operator-oriented scope`: focused on day-2 tasks, not just raw low-level endpoints
-- `Safer-by-default execution`: auth, command policy, and explicit execution paths
-- `Observable long-running workflows`: stable `Job ID`s, progress polling, retry, cancel, and audit history
-- `Operationally grounded`: documented workflows are backed by live-environment verification
+| Priority | How the project handles it |
+| --- | --- |
+| Dual access paths | Native MCP for agent workflows and OpenAPI for standard HTTP automation |
+| Proxmox-oriented workflows | Day-2 VM, LXC, snapshot, backup, ISO, storage, and cluster operations |
+| Long-running operations | Stable `job_id`s, Proxmox `UPID` tracking, polling, retry, cancel, and audit history |
+| Safer execution | Proxmox API tokens, OpenAPI bearer auth, command policy, approval tokens, TLS validation, and MCP HTTP Host/Origin controls |
+| Real validation | Unit, integration, Docker/OpenAPI, and live Proxmox e2e entry points are documented in the repo |
 
 ## Quick Start
 
-### 1. Prepare Proxmox access
+### 1. Prepare Proxmox Credentials
 
-Read the official Proxmox docs first if you are setting up a fresh lab:
-
-- [Proxmox VE installation guide](https://pve.proxmox.com/pve-docs/pve-installation-plain.html)
-- [Proxmox VE API guide](https://pve.proxmox.com/wiki/Proxmox_VE_API)
-- [Proxmox VE administration guide](https://pve.proxmox.com/pve-docs/pve-admin-guide.html)
-- [Linux Container guide](https://pve.proxmox.com/wiki/Linux_Container)
-
-Create it from the example first:
+Create a Proxmox API token with only the permissions your workflows need. Then create the local config file:
 
 ```bash
 cp proxmox-config/config.example.json proxmox-config/config.json
@@ -85,7 +82,7 @@ Add a `jobs` section if you want job state persisted somewhere other than the de
 For real live verification, use a separate `proxmox-config/config.live.json` created from `proxmox-config/config.live.example.json`.
 Do not point live e2e at a placeholder or local-only `config.json` unless you intentionally run a local API tunnel there.
 
-Minimal job persistence config:
+Optional job persistence config:
 
 ```json
 {
@@ -95,9 +92,15 @@ Minimal job persistence config:
 }
 ```
 
-### 2. Choose one runtime path
+### 2. Choose One Runtime Path
 
-#### PyPI
+| Path | Best for | Start command | Verify |
+| --- | --- | --- | --- |
+| MCP stdio from PyPI | Claude Desktop, Cursor, VS Code, Codex, local agents | `uvx proxmox-mcp-plus` | client lists `get_nodes`, `get_vms`, and job tools |
+| Native MCP HTTP from Docker | remote MCP clients that support Streamable HTTP | `docker compose --profile mcp-http up -d proxmox-mcp-http` | connect to `http://localhost:8000/mcp` |
+| OpenAPI bridge from Docker | HTTP clients, dashboards, scripts, no-code tools | `docker compose up -d` | `curl -f http://localhost:8811/livez` |
+
+#### MCP stdio with PyPI
 
 ```bash
 uvx proxmox-mcp-plus
@@ -110,19 +113,11 @@ pip install proxmox-mcp-plus
 proxmox-mcp-plus
 ```
 
-#### Docker / GHCR
+Use this path when the MCP client launches a local stdio server.
 
-OpenAPI mode remains the default Docker runtime and requires an API key:
+#### Native MCP HTTP with Docker
 
-```bash
-export PROXMOX_API_KEY="$(openssl rand -hex 32)"
-docker run --rm -p 8811:8811 \
-  -e PROXMOX_API_KEY="$PROXMOX_API_KEY" \
-  -v "$(pwd)/proxmox-config/config.json:/app/proxmox-config/config.json:ro" \
-  ghcr.io/rekklesna/proxmoxmcp-plus:latest
-```
-
-Native MCP Streamable HTTP mode is available from the same image:
+Use this path when a remote MCP client supports Streamable HTTP:
 
 ```bash
 docker run --rm -p 8000:8000 \
@@ -134,9 +129,13 @@ docker run --rm -p 8000:8000 \
   ghcr.io/rekklesna/proxmoxmcp-plus:latest
 ```
 
-Point MCP clients that support Streamable HTTP at `http://<docker-host>:8000/mcp`.
+Point MCP clients at:
 
-When serving MCP HTTP behind a reverse proxy, keep DNS rebinding protection enabled and allow only the proxy hostnames you expect:
+```text
+http://<docker-host>:8000/mcp
+```
+
+When serving MCP HTTP behind a reverse proxy, keep DNS rebinding protection enabled and allow only the hostnames you expect:
 
 ```bash
 docker run --rm -p 8000:8000 \
@@ -151,7 +150,29 @@ docker run --rm -p 8000:8000 \
   ghcr.io/rekklesna/proxmoxmcp-plus:latest
 ```
 
-#### Source
+#### OpenAPI bridge with Docker
+
+OpenAPI mode is the default Docker runtime and requires an API key:
+
+```bash
+export PROXMOX_API_KEY="$(openssl rand -hex 32)"
+docker run --rm -p 8811:8811 \
+  -e PROXMOX_API_KEY="$PROXMOX_API_KEY" \
+  -v "$(pwd)/proxmox-config/config.json:/app/proxmox-config/config.json:ro" \
+  ghcr.io/rekklesna/proxmoxmcp-plus:latest
+```
+
+Verify the OpenAPI surface:
+
+```bash
+curl -f http://localhost:8811/livez
+curl -f -H "Authorization: Bearer $PROXMOX_API_KEY" http://localhost:8811/health
+curl -H "Authorization: Bearer $PROXMOX_API_KEY" http://localhost:8811/openapi.json
+```
+
+For local unauthenticated development only, set `PROXMOX_ALLOW_NO_AUTH=true`.
+
+#### Source checkout
 
 ```bash
 git clone https://github.com/RekklesNA/ProxmoxMCP-Plus.git
@@ -161,42 +182,44 @@ uv pip install -e ".[dev]"
 python main.py
 ```
 
-### 3. Run the HTTP/OpenAPI surface
-
-```bash
-export PROXMOX_API_KEY="${PROXMOX_API_KEY:-$(openssl rand -hex 32)}"
-docker compose up -d
-curl -f http://localhost:8811/livez
-curl -f -H "Authorization: Bearer $PROXMOX_API_KEY" http://localhost:8811/health
-curl -H "Authorization: Bearer $PROXMOX_API_KEY" http://localhost:8811/openapi.json
-```
-
-For local unauthenticated development only, set `PROXMOX_ALLOW_NO_AUTH=true`.
-
-### 4. Run the native MCP Streamable HTTP surface
-
-```bash
-docker compose --profile mcp-http up -d proxmox-mcp-http
-```
-
-Connect a Streamable HTTP MCP client to:
-
-```text
-http://localhost:8000/mcp
-```
-
 The `8811` service is the OpenAPI/REST bridge. The `8000` service is the native MCP HTTP endpoint.
 
-### 5. Point a stdio MCP client at the server
+## Client Install
 
-Minimal MCP client shape:
+Use the one-click buttons when your client supports MCP install deeplinks, or copy the JSON config below.
+
+[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_Server-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=proxmox-mcp-plus&inputs=%5B%7B%22id%22%3A%22proxmox_host%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22Proxmox%20host%22%7D%2C%7B%22id%22%3A%22proxmox_user%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22Proxmox%20user%2C%20for%20example%20root%40pam%22%7D%2C%7B%22id%22%3A%22proxmox_token_name%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22Proxmox%20API%20token%20name%22%7D%2C%7B%22id%22%3A%22proxmox_token_value%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22Proxmox%20API%20token%20value%22%2C%22password%22%3Atrue%7D%5D&config=%7B%22command%22%3A%22uvx%22%2C%22args%22%3A%5B%22proxmox-mcp-plus%22%5D%2C%22env%22%3A%7B%22PROXMOX_HOST%22%3A%22%24%7Binput%3Aproxmox_host%7D%22%2C%22PROXMOX_USER%22%3A%22%24%7Binput%3Aproxmox_user%7D%22%2C%22PROXMOX_TOKEN_NAME%22%3A%22%24%7Binput%3Aproxmox_token_name%7D%22%2C%22PROXMOX_TOKEN_VALUE%22%3A%22%24%7Binput%3Aproxmox_token_value%7D%22%2C%22PROXMOX_VERIFY_SSL%22%3A%22true%22%7D%7D)
+[![Install in Cursor](https://img.shields.io/badge/Cursor-Install_Server-000000?style=flat-square)](https://cursor.com/en/install-mcp?name=proxmox-mcp-plus&config=eyJjb21tYW5kIjoidXZ4IHByb3htb3gtbWNwLXBsdXMiLCJlbnYiOnsiUFJPWE1PWF9IT1NUIjoieW91ci1wcm94bW94LWhvc3QiLCJQUk9YTU9YX1VTRVIiOiJyb290QHBhbSIsIlBST1hNT1hfVE9LRU5fTkFNRSI6Im1jcC10b2tlbiIsIlBST1hNT1hfVE9LRU5fVkFMVUUiOiJ5b3VyLXRva2VuLXNlY3JldCIsIlBST1hNT1hfVkVSSUZZX1NTTCI6InRydWUifX0=)
+
+Recommended stdio config:
 
 ```json
 {
   "mcpServers": {
     "proxmox-mcp-plus": {
-      "command": "python",
-      "args": ["/path/to/ProxmoxMCP-Plus/main.py"],
+      "command": "uvx",
+      "args": ["proxmox-mcp-plus"],
+      "env": {
+        "PROXMOX_HOST": "your-proxmox-host",
+        "PROXMOX_USER": "root@pam",
+        "PROXMOX_TOKEN_NAME": "mcp-token",
+        "PROXMOX_TOKEN_VALUE": "your-token-secret",
+        "PROXMOX_PORT": "8006",
+        "PROXMOX_VERIFY_SSL": "true"
+      }
+    }
+  }
+}
+```
+
+Use a local config file if you prefer not to keep credentials in the client config:
+
+```json
+{
+  "mcpServers": {
+    "proxmox-mcp-plus": {
+      "command": "uvx",
+      "args": ["proxmox-mcp-plus"],
       "env": {
         "PROXMOX_MCP_CONFIG": "/path/to/ProxmoxMCP-Plus/proxmox-config/config.json"
       }
@@ -205,7 +228,7 @@ Minimal MCP client shape:
 }
 ```
 
-Client-specific examples for Claude Desktop and Open WebUI are in the [Integrations Guide](docs/wiki/Integrations%20Guide.md).
+Client-specific examples for Claude Desktop, Cursor, VS Code, Codex, OpenCode, Open WebUI, Streamable HTTP, and OpenAPI are in the [Client Setup Guide](docs/wiki/Client%20Setup.md) and [Integrations Guide](docs/wiki/Integrations%20Guide.md).
 
 ## Demo
 
@@ -214,6 +237,38 @@ This demo is a direct terminal recording of `qwen/qwen3.6-plus` driving a live M
 ![Recorded demo gif](docs/assets/proxmoxmcp-demo.gif)
 
 [Watch the MP4 version](docs/assets/proxmoxmcp-demo.mp4)
+
+## Choose The Right Tool
+
+Start with read-only discovery, then move to mutating tools only after the target node, storage, VMID, and permissions are clear.
+
+| Operator goal | Start with | Then use | Notes |
+| --- | --- | --- | --- |
+| Inspect the cluster | `get_nodes`, `get_cluster_status` | `get_storage`, `get_vms`, `get_containers` | Best first health check after client install |
+| Create or manage a VM | `get_nodes`, `get_storage` | `create_vm`, `start_vm`, `stop_vm`, `delete_vm` | Long-running mutations return `job_id` and Proxmox `task_id` |
+| Manage LXCs | `get_containers`, `get_storage` | `create_container`, `start_container`, `stop_container`, `delete_container` | SSH-backed command tools require the optional `ssh` config |
+| Roll back risky changes | `list_snapshots` with `vm_type=qemu` or `vm_type=lxc` | `create_snapshot`, `rollback_snapshot`, `delete_snapshot` | Create a snapshot before destructive workflow tests |
+| Run commands inside guests | VM or container status tools | `execute_vm_command`, `execute_container_command` | VM path needs QEMU Guest Agent; LXC path needs SSH to the Proxmox node |
+| Track async work | mutation response with `job_id` | `poll_job`, `get_job`, `list_jobs`, `retry_job`, `cancel_job` | Use `job_id` for agent/user conversations and `task_id` for raw Proxmox traceability |
+| Automate from HTTP tools | `/openapi.json` | `/jobs`, `/health`, generated tool routes | Use bearer auth and keep CORS restricted outside local development |
+
+For the full tool map, see the [Tool Selection Guide](docs/wiki/Tool%20Selection%20Guide.md) and [API & Tool Reference](docs/wiki/API%20%26%20Tool%20Reference.md).
+
+## Safety Model
+
+ProxmoxMCP-Plus is an access layer, not a replacement for Proxmox RBAC, network controls, or client-side MCP approval prompts.
+
+The project gives operators several control points:
+
+- Proxmox API tokens decide what the backend can do.
+- `PROXMOX_API_KEY` protects the OpenAPI bridge by default.
+- TLS verification is enforced unless development mode is explicitly enabled.
+- `command_policy` controls command execution and high-risk operations.
+- `approval_token` can gate command execution and high-risk mutating actions.
+- MCP Streamable HTTP deployments can use DNS rebinding protection plus Host and Origin allowlists.
+- Logs are designed to avoid exposing command and credential material.
+
+Read the [Security Guide](docs/wiki/Security%20Guide.md) before exposing the server outside a trusted local environment.
 
 ## Core Platform Capabilities
 
@@ -327,7 +382,10 @@ The README is intentionally optimized for fast GitHub comprehension. Longer oper
 | --- | --- |
 | Understand the project and deployment flow | [Wiki Home](docs/wiki/Home.md) |
 | Configure and run against a Proxmox environment | [Operator Guide](docs/wiki/Operator%20Guide.md) |
-| Connect Claude Desktop or Open WebUI | [Integrations Guide](docs/wiki/Integrations%20Guide.md) |
+| Connect Claude Desktop, Cursor, VS Code, Codex, Open WebUI, or HTTP clients | [Client Setup Guide](docs/wiki/Client%20Setup.md) |
+| Choose the right tool for a workflow | [Tool Selection Guide](docs/wiki/Tool%20Selection%20Guide.md) |
+| Review docs quality goals, media plan, and publishing checklist | [Documentation Quality Plan](docs/wiki/Documentation%20Quality%20Plan.md) |
+| Review integration patterns and transport details | [Integrations Guide](docs/wiki/Integrations%20Guide.md) |
 | Install from MCP-aware IDEs and agents | [Agent Installation](docs/agent-installation.md) |
 | Enable LXC command execution over SSH | [Container Command Execution](docs/container-command-execution.md) |
 | Review security and command policy | [Security Guide](docs/wiki/Security%20Guide.md) |

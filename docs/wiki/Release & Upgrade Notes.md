@@ -18,6 +18,35 @@ Use this page to track version-level behavior changes, upgrade steps, and rollba
 
 ## Release History
 
+### Version `0.5.6`
+
+- Release date: 2026-05-30
+- Summary: documentation experience release that reorganizes the GitHub README and wiki around installation, client setup, tool choice, safety, and release documentation quality.
+- New tools or endpoints:
+  - no new runtime tools or endpoints
+- Changed behavior:
+  - no runtime behavior changes
+- Removed or deprecated behavior:
+  - no removals or deprecations
+- Config changes:
+  - no required config migration
+- Docs updated:
+  - `README.md`
+  - `docs/llms.txt`
+  - `docs/releases/v0.5.6.md`
+  - `docs/wiki/Client Setup.md`
+  - `docs/wiki/Documentation Quality Plan.md`
+  - `docs/wiki/Home.md`
+  - `docs/wiki/Integrations Guide.md`
+  - `docs/wiki/Release & Upgrade Notes.md`
+  - `docs/wiki/Tool Selection Guide.md`
+  - `docs/wiki/_Sidebar.md`
+- Upgrade steps:
+  - no required migration
+  - review the new Client Setup and Tool Selection Guide pages when onboarding new MCP clients
+- Rollback notes:
+  - downgrade to `v0.5.5` only if a deployment needs to stay on the previous package metadata; doing so removes the improved README, wiki routing, and LLM documentation index
+
 ### Version `0.5.5`
 
 - Release date: 2026-05-29
